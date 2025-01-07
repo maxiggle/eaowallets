@@ -1,0 +1,10 @@
+import 'package:eoawallet/configuration/rpc_base_config.dart';
+import 'package:eoawallet/eoawallet.dart';
+
+abstract class WalletFactory {
+  Future<WalletManager> createWalletWithMnemonic(
+      String mnemonic, ChainInformation configuration);
+  Future<WalletManager> createWalletWithPrivateKey(
+      String privateKey, ChainInformation configuration);
+  Future<WalletManager?> createWalletWithGoogleClientId();
+}
