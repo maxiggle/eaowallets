@@ -82,8 +82,10 @@ class WalletManager implements WalletFactory {
       if (googleUser == null) return null;
       await googleUser.authentication;
       final mnemonic = await _generateWallet(googleUser.id);
+      log('generated Mnemonic: $mnemonic');
       final walletManager = await EOAWalletHelpers.fromMnemonic(mnemonic);
       final credentials = walletManager.getCredentials();
+      log('generated Mnemonic: $mnemonic');
       final walletAddress = await walletManager.getWalletAddress(credentials);
       log('generated Wallet Address: $walletAddress');
       return walletManager;
