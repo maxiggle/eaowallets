@@ -1,3 +1,4 @@
+import 'dart:developer';
 import 'dart:typed_data';
 import 'package:bip39/bip39.dart' as bip39;
 import 'package:convert/convert.dart';
@@ -68,8 +69,6 @@ class WalletManager implements WalletFactory {
 
   @override
   Future<WalletManager?> createWalletWithGoogleClientId() async {
-    final prefs = await SharedPreferences.getInstance();
-
     const List<String> scopes = <String>[
       'email',
       'https://www.googleapis.com/auth/contacts.readonly',
@@ -84,11 +83,9 @@ class WalletManager implements WalletFactory {
       await googleUser.authentication;
       final mnemonic = await _generateWallet(googleUser.id);
       final walletManager = await EOAWalletHelpers.fromMnemonic(mnemonic);
-
       final credentials = walletManager.getCredentials();
       final walletAddress = await walletManager.getWalletAddress(credentials);
-      await prefs.setString('wallet_address', walletAddress);
-
+      log('generated Wallet Address: $walletAddress');
       return walletManager;
     } catch (e) {
       if (e is WalletException) {
