@@ -220,15 +220,16 @@ class WalletManager implements WalletFactory {
       final sender = EthereumAddress.fromHex(fromAddress);
       final recipient = EthereumAddress.fromHex(toAddress);
 
-      // Get sender's balance first to confirm we have funds
+      // Get sender's balance
       final balance = await _client.getBalance(sender);
-      log('Current balance: ${balance.getInWei} Wei');
+      log('Current balance: ${balance.getInWei / BigInt.from(1e18)} ETH');
 
       // Get current gas price with adjustment for Lisk Sepolia
       final gasPrice = await _client.getGasPrice();
       final adjustedGasPrice = EtherAmount.inWei(
           (gasPrice.getInWei * BigInt.from(110)) ~/ BigInt.from(100));
-      log('Adjusted gas price: ${adjustedGasPrice.getInWei} Wei');
+      log('Gas price: ${gasPrice.getInWei / BigInt.from(1e9)} Gwei');
+      log('Adjusted gas price: ${adjustedGasPrice.getInWei / BigInt.from(1e9)} Gwei');
 
       // Estimate gas limit
       final gasLimit = await _client.estimateGasLimit(
@@ -236,7 +237,27 @@ class WalletManager implements WalletFactory {
         to: recipient,
         value: weiAmount,
       );
-      log('Estimated gas limit: $gasLimit');
+      final adjustedGasLimit = (gasLimit * 120) ~/ 100; // Add 20% buffer
+      log('Gas limit: $gasLimit');
+      log('Adjusted gas limit: $adjustedGasLimit');
+
+      // Calculate total cost
+      final gasCost = adjustedGasPrice.getInWei * BigInt.from(adjustedGasLimit);
+      final totalCost = gasCost + weiAmount;
+
+      log('Cost breakdown:');
+      log('- Transfer amount: $amount ETH');
+      log('- Gas cost: ${gasCost / BigInt.from(1e18)} ETH');
+      log('- Total cost: ${totalCost / BigInt.from(1e18)} ETH');
+      log('- Available balance: ${balance.getInWei / BigInt.from(1e18)} ETH');
+
+      if (balance.getInWei < totalCost) {
+        throw WalletException('Insufficient funds.\n'
+            'Transfer amount: $amount ETH\n'
+            'Gas cost: ${gasCost / BigInt.from(1e18)} ETH\n'
+            'Total needed: ${totalCost / BigInt.from(1e18)} ETH\n'
+            'Available: ${balance.getInWei / BigInt.from(1e18)} ETH');
+      }
 
       // Create and send the transaction
       final transaction = await _client.sendTransaction(
@@ -245,24 +266,18 @@ class WalletManager implements WalletFactory {
           from: sender,
           to: recipient,
           value: EtherAmount.inWei(weiAmount),
-          maxGas: (gasLimit * 120) ~/ 100, // Add 20% buffer to gas limit
+          maxGas: adjustedGasLimit,
           gasPrice: adjustedGasPrice,
           nonce: await _client.getTransactionCount(sender),
         ),
-        chainId: 4202, // Lisk Sepolia chain ID
+        chainId: 4202,
       );
       log('Transaction hash: $transaction');
 
       return transaction;
     } catch (e) {
-      if (e.toString().contains("insufficient funds")) {
-        final balance =
-            await _client.getBalance(EthereumAddress.fromHex(fromAddress));
-        throw WalletException(
-            'Insufficient funds. Available: ${balance.getInWei / BigInt.from(1e18)} ETH');
-      }
       log('Error sending ETH: $e');
-      throw WalletException('Failed to send ETH: ${e.toString()}');
+      throw Exception('Failed to send ETH: $e');
     }
   }
 }
