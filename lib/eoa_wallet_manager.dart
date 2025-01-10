@@ -216,11 +216,13 @@ class WalletManager implements WalletFactory {
     try {
       final weiAmount = EthereumExtensions.ethToWei(amount);
       final gasPrice = await _client.getGasPrice();
+      log('gas price: ${gasPrice.toString()}');
       final gasLimit = await _client.estimateGasLimit(
         from: _credentials.address,
         to: EthereumAddress.fromHex(toAddress),
         value: weiAmount,
       );
+      log('gas limit: ${gasLimit.toString()}');
       final transaction = await _client.sendTransaction(
         _credentials,
         Transaction(
@@ -232,6 +234,7 @@ class WalletManager implements WalletFactory {
         ),
         chainId: 4202,
       );
+      log('transaction: ${transaction.toString()}');
       return transaction;
     } catch (e) {
       throw WalletException('Failed to send ETH', e);

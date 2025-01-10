@@ -73,6 +73,7 @@ class TokenService {
         params: [_credentials.address],
       );
       log('balance of non native token: ${result.first.toString()}');
+
       return result.first.toString();
     } catch (e) {
       throw Exception('Failed to check balance: $e');
