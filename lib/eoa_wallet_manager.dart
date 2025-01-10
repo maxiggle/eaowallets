@@ -46,7 +46,7 @@ class WalletManager implements WalletFactory {
         if (!privateKey.startsWith('0x')) {
           privateKey = '0x$privateKey';
         }
-        return await EOAWalletHelpers.fromPrivateKey(privateKey, client);
+        return await EOAWalletHelpers.fromPrivateKey(privateKey);
       } else {
         return await _createNewWallet(client);
       }
@@ -127,14 +127,12 @@ class WalletManager implements WalletFactory {
   }
 
   @override
-  Future<WalletManager> createWalletWithPrivateKey(
-      String privateKey, ChainInformation configuration) async {
+  Future<WalletManager> createWalletWithPrivateKey(String privateKey) async {
     if (privateKey.isEmpty) {
       throw WalletException('Private key cannot be empty');
     }
     return await EOAWalletHelpers.fromPrivateKey(
       privateKey,
-      Web3Client(configuration.rpcUrl, Client()),
     );
   }
 

@@ -28,17 +28,45 @@ class EOAWalletHelpers {
     }
   }
 
-  static Future<WalletManager> fromPrivateKey(
-      String privateKey, Web3Client client) async {
+  static Future<WalletManager> fromPrivateKey(String privateKey) async {
     try {
-      final credentials = EthPrivateKey.fromHex(privateKey);
+      // Format the private key
+      String formattedKey = privateKey.trim();
+      if (!formattedKey.startsWith('0x')) {
+        // If it's a decimal number, convert to hex
+        try {
+          BigInt decimal = BigInt.parse(formattedKey);
+          String hex = decimal.toRadixString(16);
+          // Pad with zeros if needed to ensure 64 characters
+          while (hex.length < 64) {
+            hex = '0$hex';
+          }
+          formattedKey = '0x$hex';
+        } catch (e) {
+          throw WalletException(
+              'Invalid private key format. Must be a valid decimal number or hex string',
+              e);
+        }
+      }
+
+      // Validate the formatted key
+      if (formattedKey.length != 66) {
+        // 64 chars + '0x'
+        throw WalletException(
+            'Invalid private key length. Must be 64 characters (32 bytes) plus 0x prefix');
+      }
+      // Create credentials
+      final credentials = EthPrivateKey.fromHex(formattedKey);
       return WalletManager(
         mnemonic: '',
-        privateKey: privateKey,
+        privateKey: formattedKey,
         credentials: credentials,
         client: null,
       );
     } catch (e) {
+      if (e is WalletException) {
+        rethrow;
+      }
       throw WalletException('Failed to create wallet from private key', e);
     }
   }
