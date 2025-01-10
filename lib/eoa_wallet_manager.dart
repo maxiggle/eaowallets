@@ -218,7 +218,7 @@ class WalletManager implements WalletFactory {
     double amount,
   ) async {
     try {
-      final weiAmount = EthereumExtensions.ethToWei(amount);
+      final weiAmount = BigInt.from(amount * 1e18);
       final gasPrice = await _client.getGasPrice();
       log('gas price: ${gasPrice.toString()}');
       final gasLimit = await _client.estimateGasLimit(
