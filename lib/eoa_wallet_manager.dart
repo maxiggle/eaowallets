@@ -222,47 +222,48 @@ class WalletManager implements WalletFactory {
 
       // Get sender's balance
       final balance = await _client.getBalance(sender);
-      log('Current balance: ${balance.getInWei / BigInt.from(1e18)} ETH');
+      log('Current balance in Wei: ${balance.getInWei}');
+      log('Current balance in ETH: ${balance.getInWei / BigInt.from(1e18)}');
 
-      // Get current gas price with minimum threshold
+      // Get network gas price
       final gasPrice = await _client.getGasPrice();
-      // Ensure minimum gas price of 1 Gwei
-      final minGasPrice = EtherAmount.fromUnitAndValue(EtherUnit.gwei, 1);
-      final baseGasPrice =
-          gasPrice.getInWei < minGasPrice.getInWei ? minGasPrice : gasPrice;
+      log('Network gas price in Wei: ${gasPrice.getInWei}');
 
-      // Add 10% buffer to gas price
-      final adjustedGasPrice = EtherAmount.inWei(
-          (baseGasPrice.getInWei * BigInt.from(110)) ~/ BigInt.from(100));
+      // Use a significantly higher gas price to ensure acceptance
+      final adjustedGasPrice =
+          EtherAmount.inWei(BigInt.from(41000000000) // 41 Gwei
+              );
+      log('Using gas price in Wei: ${adjustedGasPrice.getInWei}');
 
-      log('Network gas price: ${gasPrice.getInWei / BigInt.from(1e9)} Gwei');
-      log('Base gas price: ${baseGasPrice.getInWei / BigInt.from(1e9)} Gwei');
-      log('Final gas price: ${adjustedGasPrice.getInWei / BigInt.from(1e9)} Gwei');
-
-      // Standard gas limit for ETH transfers is 21000
+      // Use standard gas limit for ETH transfers
       final gasLimit = BigInt.from(21000);
+      // Add 20% buffer
       final adjustedGasLimit =
-          (gasLimit * BigInt.from(120)) ~/ BigInt.from(100); // 20% buffer
-      log('Gas limit: $gasLimit');
-      log('Adjusted gas limit: $adjustedGasLimit');
+          (gasLimit * BigInt.from(120)) ~/ BigInt.from(100);
+      log('Gas limit: $adjustedGasLimit');
 
-      // Calculate total cost
+      // Calculate costs in Wei
       final gasCost = adjustedGasPrice.getInWei * adjustedGasLimit;
       final totalCost = gasCost + weiAmount;
 
-      log('Cost breakdown:');
-      log('- Transfer amount: $amount ETH');
-      log('- Gas cost: ${gasCost / BigInt.from(1e18)} ETH');
-      log('- Total cost: ${totalCost / BigInt.from(1e18)} ETH');
-      log('- Available balance: ${balance.getInWei / BigInt.from(1e18)} ETH');
+      log('Cost breakdown in Wei:');
+      log('- Transfer amount in Wei: $weiAmount');
+      log('- Gas cost in Wei: $gasCost');
+      log('- Total cost in Wei: $totalCost');
+      log('- Available balance in Wei: ${balance.getInWei}');
 
+      // Verify we have enough balance
       if (balance.getInWei < totalCost) {
         throw WalletException('Insufficient funds.\n'
-            'Transfer amount: $amount ETH\n'
-            'Gas cost: ${gasCost / BigInt.from(1e18)} ETH\n'
-            'Total needed: ${totalCost / BigInt.from(1e18)} ETH\n'
-            'Available: ${balance.getInWei / BigInt.from(1e18)} ETH');
+            'Transfer amount (Wei): $weiAmount\n'
+            'Gas cost (Wei): $gasCost\n'
+            'Total needed (Wei): $totalCost\n'
+            'Available (Wei): ${balance.getInWei}');
       }
+
+      // Get current nonce
+      final nonce = await _client.getTransactionCount(sender);
+      log('Using nonce: $nonce');
 
       // Create and send the transaction
       final transaction = await _client.sendTransaction(
@@ -273,7 +274,7 @@ class WalletManager implements WalletFactory {
           value: EtherAmount.inWei(weiAmount),
           maxGas: adjustedGasLimit.toInt(),
           gasPrice: adjustedGasPrice,
-          nonce: await _client.getTransactionCount(sender),
+          nonce: nonce,
         ),
         chainId: 4202,
       );
@@ -282,6 +283,12 @@ class WalletManager implements WalletFactory {
       return transaction;
     } catch (e) {
       log('Error sending ETH: $e');
+      if (e.toString().contains("insufficient funds")) {
+        // Get fresh balance
+        final currentBalance =
+            await _client.getBalance(EthereumAddress.fromHex(fromAddress));
+        log('Current balance at error: ${currentBalance.getInWei} Wei');
+      }
       throw Exception('Failed to send ETH: $e');
     }
   }
