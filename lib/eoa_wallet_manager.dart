@@ -212,7 +212,8 @@ class WalletManager implements WalletFactory {
     }
   }
 
-  Future<String> sendEth(String toAddress, double amount) async {
+  Future<String> sendEth(String toAddress, double amount,
+      {String? fromAddress}) async {
     try {
       // Convert ETH amount to Wei using BigInt
       final weiAmount = BigInt.from(amount * 1e18);
@@ -223,7 +224,7 @@ class WalletManager implements WalletFactory {
 
       // Estimate gas limit for the transaction
       final gasLimit = await _client.estimateGasLimit(
-        from: _credentials.address,
+        from: EthereumAddress.fromHex(fromAddress ?? _credentials.address.hex),
         to: EthereumAddress.fromHex(toAddress),
         value: weiAmount,
       );
