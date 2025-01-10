@@ -212,36 +212,40 @@ class WalletManager implements WalletFactory {
     }
   }
 
-  Future<String> sendEth(
-    String toAddress,
-    String fromAddress,
-    double amount,
-  ) async {
+  Future<String> sendEth(String toAddress, double amount) async {
     try {
+      // Convert ETH amount to Wei using BigInt
       final weiAmount = BigInt.from(amount * 1e18);
+
+      // Get current gas price
       final gasPrice = await _client.getGasPrice();
-      log('gas price: ${gasPrice.toString()}');
+      log('Gas price: ${gasPrice.getInWei} Wei');
+
+      // Estimate gas limit for the transaction
       final gasLimit = await _client.estimateGasLimit(
-        from: EthereumAddress.fromHex(fromAddress),
+        from: _credentials.address,
         to: EthereumAddress.fromHex(toAddress),
         value: weiAmount,
       );
-      log('gas limit: ${gasLimit.toString()}');
+      log('Estimated gas limit: $gasLimit');
+
+      // Create and send the transaction
       final transaction = await _client.sendTransaction(
         _credentials,
         Transaction(
           to: EthereumAddress.fromHex(toAddress),
-          value: EtherAmount.fromInt(
-              EtherUnit.ether, int.parse(amount.toString())),
-          maxGas: gasLimit,
+          value: EtherAmount.inWei(weiAmount),
+          maxGas: gasLimit.toInt(),
           gasPrice: gasPrice,
         ),
         chainId: 4202,
       );
-      log('transaction: ${transaction.toString()}');
+      log('Transaction hash: $transaction');
+
       return transaction;
     } catch (e) {
-      throw WalletException('Failed to send ETH', e);
+      log('Error sending ETH: $e');
+      throw WalletException('Failed to send ETH: ${e.toString()}');
     }
   }
 }
