@@ -224,25 +224,30 @@ class WalletManager implements WalletFactory {
       final balance = await _client.getBalance(sender);
       log('Current balance: ${balance.getInWei / BigInt.from(1e18)} ETH');
 
-      // Get current gas price with adjustment for Lisk Sepolia
+      // Get current gas price with minimum threshold
       final gasPrice = await _client.getGasPrice();
-      final adjustedGasPrice = EtherAmount.inWei(
-          (gasPrice.getInWei * BigInt.from(110)) ~/ BigInt.from(100));
-      log('Gas price: ${gasPrice.getInWei / BigInt.from(1e9)} Gwei');
-      log('Adjusted gas price: ${adjustedGasPrice.getInWei / BigInt.from(1e9)} Gwei');
+      // Ensure minimum gas price of 1 Gwei
+      final minGasPrice = EtherAmount.fromUnitAndValue(EtherUnit.gwei, 1);
+      final baseGasPrice =
+          gasPrice.getInWei < minGasPrice.getInWei ? minGasPrice : gasPrice;
 
-      // Estimate gas limit
-      final gasLimit = await _client.estimateGasLimit(
-        from: sender,
-        to: recipient,
-        value: weiAmount,
-      );
-      final adjustedGasLimit = (gasLimit * 120) ~/ 100; // Add 20% buffer
+      // Add 10% buffer to gas price
+      final adjustedGasPrice = EtherAmount.inWei(
+          (baseGasPrice.getInWei * BigInt.from(110)) ~/ BigInt.from(100));
+
+      log('Network gas price: ${gasPrice.getInWei / BigInt.from(1e9)} Gwei');
+      log('Base gas price: ${baseGasPrice.getInWei / BigInt.from(1e9)} Gwei');
+      log('Final gas price: ${adjustedGasPrice.getInWei / BigInt.from(1e9)} Gwei');
+
+      // Standard gas limit for ETH transfers is 21000
+      final gasLimit = BigInt.from(21000);
+      final adjustedGasLimit =
+          (gasLimit * BigInt.from(120)) ~/ BigInt.from(100); // 20% buffer
       log('Gas limit: $gasLimit');
       log('Adjusted gas limit: $adjustedGasLimit');
 
       // Calculate total cost
-      final gasCost = adjustedGasPrice.getInWei * BigInt.from(adjustedGasLimit);
+      final gasCost = adjustedGasPrice.getInWei * adjustedGasLimit;
       final totalCost = gasCost + weiAmount;
 
       log('Cost breakdown:');
@@ -266,7 +271,7 @@ class WalletManager implements WalletFactory {
           from: sender,
           to: recipient,
           value: EtherAmount.inWei(weiAmount),
-          maxGas: adjustedGasLimit,
+          maxGas: adjustedGasLimit.toInt(),
           gasPrice: adjustedGasPrice,
           nonce: await _client.getTransactionCount(sender),
         ),
