@@ -212,13 +212,17 @@ class WalletManager implements WalletFactory {
     }
   }
 
-  Future<String> sendEth(String toAddress, double amount) async {
+  Future<String> sendEth(
+    String toAddress,
+    String fromAddress,
+    double amount,
+  ) async {
     try {
       final weiAmount = EthereumExtensions.ethToWei(amount);
       final gasPrice = await _client.getGasPrice();
       log('gas price: ${gasPrice.toString()}');
       final gasLimit = await _client.estimateGasLimit(
-        from: _credentials.address,
+        from: EthereumAddress.fromHex(fromAddress),
         to: EthereumAddress.fromHex(toAddress),
         value: weiAmount,
       );
